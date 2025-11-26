@@ -1,22 +1,22 @@
 local spawnedPeds = {}
 lib.locale()
 
-Citizen.CreateThread(function()
+CreateThread(function()
     while true do
-        Citizen.Wait(500)
-        for k,v in pairs(Config.PortLocations) do
-            local playerCoords = GetEntityCoords(PlayerPedId())
-            local distance = #(playerCoords - v.npccoords.xyz)
+        Wait(1000)
+        local playerCoords = GetEntityCoords(PlayerPedId())
 
-            if distance < Config.DistanceSpawn and not spawnedPeds[k] then
-                local spawnedPed = NearPed(v.npcmodel, v.npccoords, v.currentport)
-                spawnedPeds[k] = { spawnedPed = spawnedPed }
-            end
-            
-            if distance >= Config.DistanceSpawn and spawnedPeds[k] then
+        for k, v in pairs(Config.PortLocations) do
+            local dist = #(playerCoords - v.npccoords.xyz)
+
+            if dist < Config.DistanceSpawn then
+                if not spawnedPeds[k] then
+                    spawnedPeds[k] = { spawnedPed = NearPed(v.npcmodel, v.npccoords, v.currentport) }
+                end
+            elseif spawnedPeds[k] and dist > Config.DistanceSpawn + 10 then
                 if Config.FadeIn then
                     for i = 255, 0, -51 do
-                        Citizen.Wait(50)
+                        Wait(50)
                         SetEntityAlpha(spawnedPeds[k].spawnedPed, i, false)
                     end
                 end
@@ -27,29 +27,27 @@ Citizen.CreateThread(function()
     end
 end)
 
-function NearPed(npcmodel, npccoords, currentport)
-    RequestModel(npcmodel)
-    while not HasModelLoaded(npcmodel) do
-        Citizen.Wait(50)
-    end
-    spawnedPed = CreatePed(npcmodel, npccoords.x, npccoords.y, npccoords.z - 1.0, npccoords.w, false, false, 0, 0)
-    SetEntityAlpha(spawnedPed, 0, false)
-    Citizen.InvokeNative(0x283978A15512B2FE, spawnedPed, true)
-    SetEntityCanBeDamaged(spawnedPed, false)
-    SetEntityInvincible(spawnedPed, true)
-    FreezeEntityPosition(spawnedPed, true)
-    SetBlockingOfNonTemporaryEvents(spawnedPed, true)
-    SetPedCanBeTargetted(spawnedPed, false)
-    SetPedFleeAttributes(spawnedPed, 0, false)
+function NearPed(model, coords, currentport)
+    RequestModel(model)
+    while not HasModelLoaded(model) do Wait(10) end
+
+    local ped = CreatePed(model, coords.x, coords.y, coords.z - 1.0, coords.w, false, true)
+    SetEntityAlpha(ped, 0, false)
+    Citizen.InvokeNative(0x283978A15512B2FE, ped, true)
+    FreezeEntityPosition(ped, true)
+    SetEntityInvincible(ped, true)
+    SetBlockingOfNonTemporaryEvents(ped, true)
+
     if Config.FadeIn then
         for i = 0, 255, 51 do
-            Citizen.Wait(50)
-            SetEntityAlpha(spawnedPed, i, false)
+            Wait(50)
+            SetEntityAlpha(ped, i, false)
         end
     end
-    exports.ox_target:addLocalEntity(spawnedPed, {
+
+    exports.ox_target:addLocalEntity(ped, {
         {
-            name = 'npc_guarma',
+            name = 'guarma_port_npc',
             icon = 'far fa-eye',
             label = locale('cl_lang_14'),
             onSelect = function()
@@ -58,14 +56,15 @@ function NearPed(npcmodel, npccoords, currentport)
             distance = 3.0
         }
     })
-    return spawnedPed
+
+    return ped
 end
 
--- cleanup
-AddEventHandler("onResourceStop", function(resourceName)
-    if GetCurrentResourceName() ~= resourceName then return end
-    for k,v in pairs(spawnedPeds) do
-        DeletePed(spawnedPeds[k].spawnedPed)
-        spawnedPeds[k] = nil
+AddEventHandler('onResourceStop', function(resource)
+    if resource ~= GetCurrentResourceName() then return end
+    for _, v in pairs(spawnedPeds) do
+        if DoesEntityExist(v.spawnedPed) then
+            DeletePed(v.spawnedPed)
+        end
     end
 end)

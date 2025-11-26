@@ -6,6 +6,9 @@ Config = {}
 Config.TicketCost = 10
 Config.DistanceSpawn = 20.0
 Config.FadeIn = true
+Config.TravelCooldown = 30
+Config.BuyCooldown = 5
+Config.MaxTickets = 10
 
 -----------------------------------------------------------
 -- blip settings
